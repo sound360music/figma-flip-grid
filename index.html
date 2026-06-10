@@ -40,6 +40,7 @@
       background: var(--tile-bg);
       transform-style: preserve-3d;
       isolation: isolate;
+      border-radius: 2px;      /* ← 추가 */
     }
     .tile-card {
       position: relative;
@@ -68,6 +69,7 @@
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
       transform: translateZ(0.1px);
+      border-radius: 2px;      /* ← 추가 (이미지도 따라 둥글게) */
     }
     .loading {
       position: fixed;
