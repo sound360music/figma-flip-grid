@@ -31,7 +31,6 @@
       place-items: center;
     }
 
-    /* 보이는 창 */
     .viewport {
       width: var(--board-size);
       height: var(--board-size);
@@ -39,14 +38,10 @@
       position: relative;
     }
 
-    /* 보드 여러 개를 세로로 쌓는 컨테이너 */
     .strip {
       display: flex;
       flex-direction: column;
-      animation-name: scrollUp;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-      animation-duration: 72s;
+      animation: scrollUp 72s linear infinite;
     }
 
     @keyframes scrollUp {
@@ -54,7 +49,6 @@
       100% { transform: translateY(calc(-1 * var(--board-size))); }
     }
 
-    /* 6×6 보드 한 판 */
     .board {
       width: var(--board-size);
       height: var(--board-size);
@@ -83,6 +77,7 @@
       height: 100%;
       transform-style: preserve-3d;
       will-change: transform;
+      animation-duration: var(--tile-anim-dur, 500ms);
     }
 
     .face {
@@ -95,6 +90,7 @@
       -webkit-backface-visibility: hidden;
       transform: translateZ(0.1px);
       border-radius: var(--radius);
+      animation-duration: var(--tile-anim-dur, 500ms);
     }
 
     .face.current { z-index: 1; }
@@ -113,9 +109,6 @@
 
     .hidden { display: none; }
 
-    /* ============ 전환 애니메이션 ============ */
-
-    /* Y축 플립 */
     .anim-flip-y .tile-inner {
       animation-name: flipY;
       animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -128,7 +121,6 @@
       100%  { transform: rotateY(0deg); }
     }
 
-    /* X축 플립 */
     .anim-flip-x .tile-inner {
       animation-name: flipX;
       animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -141,13 +133,11 @@
       100%  { transform: rotateX(0deg); }
     }
 
-    /* 슬라이드 공통 – next 항상 보이게 */
     .anim-slide-up .face.next,
     .anim-slide-down .face.next,
     .anim-slide-left .face.next,
     .anim-slide-right .face.next { opacity: 1; }
 
-    /* 위 */
     .anim-slide-up .face.current {
       animation-name: slideCurrentUp; animation-fill-mode: both;
     }
@@ -163,7 +153,6 @@
       100% { transform: translateY(0); }
     }
 
-    /* 아래 */
     .anim-slide-down .face.current {
       animation-name: slideCurrentDown; animation-fill-mode: both;
     }
@@ -179,7 +168,6 @@
       100% { transform: translateY(0); }
     }
 
-    /* 왼쪽 */
     .anim-slide-left .face.current {
       animation-name: slideCurrentLeft; animation-fill-mode: both;
     }
@@ -195,7 +183,6 @@
       100% { transform: translateX(0); }
     }
 
-    /* 오른쪽 */
     .anim-slide-right .face.current {
       animation-name: slideCurrentRight; animation-fill-mode: both;
     }
@@ -211,7 +198,6 @@
       100% { transform: translateX(0); }
     }
 
-    /* 블러 디졸브 */
     .anim-dissolve .face.current {
       animation-name: dissolveOut; animation-fill-mode: both;
     }
@@ -241,7 +227,7 @@
       cols: 6,
       rows: 6,
       tilesPerBoard: 36,
-      boardCount: 3,           // 세로로 이어 붙일 보드 개수 (3개면 충분히 끊김 없음)
+      boardCount: 3,
       minRefreshDelay: 2000,
       maxRefreshDelay: 5000,
       minTilesPerRefresh: 1,
@@ -254,10 +240,6 @@
       basePath: './images'
     };
 
-    const stripEl   = document.getElementById('strip');
-    const loadingEl = document.getElementById('loading');
-    const tiles     = [];
-
     const TRANSITIONS = [
       'anim-flip-x',
       'anim-flip-y',
@@ -268,9 +250,11 @@
       'anim-dissolve'
     ];
 
-    function pad2(n) {
-      return String(n).padStart(2, '0');
-    }
+    const stripEl   = document.getElementById('strip');
+    const loadingEl = document.getElementById('loading');
+    const tiles     = [];
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
 
     function shuffle(arr) {
       const a = [...arr];
@@ -327,12 +311,7 @@
       tile.append(inner);
       boardEl.append(tile);
 
-      tiles.push({
-        tile, inner, current, next,
-        src: initialSrc,
-        animClass: null,
-        running: false
-      });
+      tiles.push({ tile, inner, current, next, src: initialSrc, animClass: null, running: false });
     }
 
     function activeImageSet(excludeIndexes = []) {
@@ -354,20 +333,18 @@
       if (tileState.running || tileState.src === nextSrc) return;
 
       tileState.running = true;
+      tileState.tile.style.setProperty('--tile-anim-dur', `${duration}ms`);
+
       tileState.next.style.backgroundImage = `url("${nextSrc}")`;
       tileState.next.style.opacity = '1';
 
       if (tileState.animClass) {
         tileState.tile.classList.remove(tileState.animClass);
+        void tileState.tile.offsetWidth;
       }
 
       const transitionClass = pickRandomTransition();
-      tileState.animClass   = transitionClass;
-
-      tileState.inner.style.animationDuration   = `${duration}ms`;
-      tileState.current.style.animationDuration = `${duration}ms`;
-      tileState.next.style.animationDuration    = `${duration}ms`;
-
+      tileState.animClass = transitionClass;
       tileState.tile.classList.add(transitionClass);
 
       const midTimeout = window.setTimeout(() => {
@@ -377,11 +354,9 @@
 
       window.setTimeout(() => {
         tileState.tile.classList.remove(transitionClass);
-        tileState.running  = false;
+        tileState.animClass = null;
+        tileState.running = false;
         tileState.next.style.opacity = '0';
-        tileState.inner.style.animationDuration   = '';
-        tileState.current.style.animationDuration = '';
-        tileState.next.style.animationDuration    = '';
         window.clearTimeout(midTimeout);
       }, duration + 30);
     }
@@ -416,16 +391,12 @@
       const pool       = loaded.filter(item => item.ok).map(item => item.url);
 
       if (!pool.length) {
-        loadingEl.textContent =
-          '이미지를 찾을 수 없습니다. images/01~99.(jpg/jpeg/png/gif)을 확인해 주세요.';
+        loadingEl.textContent = '이미지를 찾을 수 없습니다. images/01~99.(jpg/jpeg/png/gif)을 확인해 주세요.';
         return;
       }
 
-      const totalTiles = CONFIG.tilesPerBoard * CONFIG.boardCount;
-
       if (pool.length < CONFIG.tilesPerBoard) {
-        loadingEl.textContent =
-          `사용 가능한 이미지 ${pool.length}장. 일부 타일은 반복 사용됩니다.`;
+        loadingEl.textContent = `사용 가능한 이미지 ${pool.length}장. 일부 타일은 반복 사용됩니다.`;
       }
 
       const starter = shuffle(pool);
@@ -434,7 +405,6 @@
         const board = document.createElement('div');
         board.className = 'board';
         stripEl.append(board);
-
         for (let i = 0; i < CONFIG.tilesPerBoard; i++) {
           const src = starter[(b * CONFIG.tilesPerBoard + i) % starter.length];
           createTile(board, src);
