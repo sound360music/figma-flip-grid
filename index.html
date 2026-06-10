@@ -12,6 +12,7 @@
       --gap: 2px;
       --board-size: 730px;
       --tile-bg: #161616;
+      --radius: 2px;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -40,7 +41,7 @@
       background: var(--tile-bg);
       transform-style: preserve-3d;
       isolation: isolate;
-      border-radius: 2px;      /* ← 추가 */
+      border-radius: var(--radius);
     }
     .tile-card {
       position: relative;
@@ -69,7 +70,7 @@
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
       transform: translateZ(0.1px);
-      border-radius: 2px;      /* ← 추가 (이미지도 따라 둥글게) */
+      border-radius: var(--radius);
     }
     .loading {
       position: fixed;
@@ -99,16 +100,22 @@
       maxTilesPerRefresh: 3,
       minFlipDuration: 300,
       maxFlipDuration: 600,
-      imagePool: [
-        './images/01.jpg',
-        './images/02.jpeg',
-        './images/03.png'
-      ]
+      // 01 ~ 99까지 탐색
+      minIndex: 1,
+      maxIndex: 99,
+      // 허용 확장자 (소문자로 비교)
+      exts: ['jpg', 'jpeg', 'png', 'gif'],
+      // 기본 폴더
+      basePath: './images'
     };
 
     const board = document.getElementById('board');
     const loading = document.getElementById('loading');
     const tiles = [];
+
+    function pad2(n) {
+      return String(n).padStart(2, '0');
+    }
 
     function shuffle(arr) {
       const a = [...arr];
@@ -121,6 +128,18 @@
 
     function randomInt(min, max) {
       return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // 01~99, jpg/jpeg/png/gif 조합을 모두 만들어서 preload
+    function buildCandidateUrls() {
+      const urls = [];
+      for (let i = CONFIG.minIndex; i <= CONFIG.maxIndex; i++) {
+        const index = pad2(i);
+        for (const ext of CONFIG.exts) {
+          urls.push(`${CONFIG.basePath}/${index}.${ext}`);
+        }
+      }
+      return urls;
     }
 
     function preloadImages(urls) {
@@ -151,8 +170,8 @@
       return new Set(tiles.filter((_, i) => !skip.has(i)).map(t => t.src));
     }
 
-    function pickReplacement(excludeSet) {
-      const candidates = CONFIG.imagePool.filter(src => !excludeSet.has(src));
+    function pickReplacement(pool, excludeSet) {
+      const candidates = pool.filter(src => !excludeSet.has(src));
       if (!candidates.length) return null;
       return candidates[Math.floor(Math.random() * candidates.length)];
     }
@@ -172,42 +191,50 @@
       }, duration + 20);
     }
 
-    function scheduleNext() {
+    function scheduleNext(pool) {
       const delay = randomInt(CONFIG.minRefreshDelay, CONFIG.maxRefreshDelay);
-      window.setTimeout(refreshTiles, delay);
+      window.setTimeout(() => refreshTiles(pool), delay);
     }
 
-    function refreshTiles() {
+    function refreshTiles(pool) {
       const changeCount = randomInt(CONFIG.minTilesPerRefresh, CONFIG.maxTilesPerRefresh);
       const indexes = shuffle([...Array(tiles.length).keys()]).slice(0, changeCount);
       const baseActive = activeImageSet(indexes);
       const picked = new Set();
 
       indexes.forEach(index => {
-        const nextSrc = pickReplacement(new Set([...baseActive, ...picked]));
+        const nextSrc = pickReplacement(pool, new Set([...baseActive, ...picked]));
         if (!nextSrc) return;
         picked.add(nextSrc);
         flipTo(tiles[index], nextSrc, randomInt(CONFIG.minFlipDuration, CONFIG.maxFlipDuration));
       });
 
-      scheduleNext();
+      scheduleNext(pool);
     }
 
     async function init() {
-      const loaded = await preloadImages(CONFIG.imagePool);
-      CONFIG.imagePool = loaded.filter(item => item.ok).map(item => item.url);
+      const candidates = buildCandidateUrls();
+      const loaded = await preloadImages(candidates);
 
-      if (CONFIG.imagePool.length < CONFIG.totalTiles) {
-        loading.textContent = `테스트용 이미지 ${CONFIG.imagePool.length}장 로드됨. 실전에서는 최소 36장 이상 필요합니다.`;
+      // 실제로 로딩에 성공한 파일만 풀에 남김
+      const pool = loaded.filter(item => item.ok).map(item => item.url);
+
+      if (pool.length === 0) {
+        loading.textContent = '이미지를 찾을 수 없습니다. images/01~99.(jpg/jpeg/png/gif) 를 확인해 주세요.';
+        return;
       }
 
-      const starter = shuffle(CONFIG.imagePool);
+      if (pool.length < CONFIG.totalTiles) {
+        loading.textContent = `사용 가능한 이미지 ${pool.length}장. 타일 ${CONFIG.totalTiles}개 중 일부는 반복 사용됩니다.`;
+      }
+
+      const starter = shuffle(pool);
       for (let i = 0; i < CONFIG.totalTiles; i++) {
         createTile(starter[i % starter.length]);
       }
 
       loading.classList.add('hidden');
-      scheduleNext();
+      scheduleNext(pool);
     }
 
     init();
