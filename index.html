@@ -26,10 +26,7 @@
       font-family: Arial, sans-serif;
     }
 
-    body {
-      display: grid;
-      place-items: center;
-    }
+    body { display: grid; place-items: center; }
 
     .viewport {
       width: var(--board-size);
@@ -145,12 +142,10 @@
       animation-name: slideNextUp; animation-fill-mode: both;
     }
     @keyframes slideCurrentUp {
-      0%   { transform: translateY(0); }
-      100% { transform: translateY(-100%); }
+      0% { transform: translateY(0); } 100% { transform: translateY(-100%); }
     }
     @keyframes slideNextUp {
-      0%   { transform: translateY(100%); }
-      100% { transform: translateY(0); }
+      0% { transform: translateY(100%); } 100% { transform: translateY(0); }
     }
 
     .anim-slide-down .face.current {
@@ -160,12 +155,10 @@
       animation-name: slideNextDown; animation-fill-mode: both;
     }
     @keyframes slideCurrentDown {
-      0%   { transform: translateY(0); }
-      100% { transform: translateY(100%); }
+      0% { transform: translateY(0); } 100% { transform: translateY(100%); }
     }
     @keyframes slideNextDown {
-      0%   { transform: translateY(-100%); }
-      100% { transform: translateY(0); }
+      0% { transform: translateY(-100%); } 100% { transform: translateY(0); }
     }
 
     .anim-slide-left .face.current {
@@ -175,12 +168,10 @@
       animation-name: slideNextLeft; animation-fill-mode: both;
     }
     @keyframes slideCurrentLeft {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
+      0% { transform: translateX(0); } 100% { transform: translateX(-100%); }
     }
     @keyframes slideNextLeft {
-      0%   { transform: translateX(100%); }
-      100% { transform: translateX(0); }
+      0% { transform: translateX(100%); } 100% { transform: translateX(0); }
     }
 
     .anim-slide-right .face.current {
@@ -190,12 +181,10 @@
       animation-name: slideNextRight; animation-fill-mode: both;
     }
     @keyframes slideCurrentRight {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(100%); }
+      0% { transform: translateX(0); } 100% { transform: translateX(100%); }
     }
     @keyframes slideNextRight {
-      0%   { transform: translateX(-100%); }
-      100% { transform: translateX(0); }
+      0% { transform: translateX(-100%); } 100% { transform: translateX(0); }
     }
 
     .anim-dissolve .face.current {
@@ -227,7 +216,7 @@
       cols: 6,
       rows: 6,
       tilesPerBoard: 36,
-      boardCount: 3,
+      boardCount: 2,
       minRefreshDelay: 2000,
       maxRefreshDelay: 5000,
       minTilesPerRefresh: 1,
@@ -294,17 +283,17 @@
     }
 
     function createTile(boardEl, initialSrc) {
-      const tile = document.createElement('div');
+      const tile    = document.createElement('div');
       tile.className = 'tile';
 
-      const inner = document.createElement('div');
+      const inner   = document.createElement('div');
       inner.className = 'tile-inner';
 
       const current = document.createElement('div');
       current.className = 'face current';
       current.style.backgroundImage = `url("${initialSrc}")`;
 
-      const next = document.createElement('div');
+      const next    = document.createElement('div');
       next.className = 'face next';
 
       inner.append(current, next);
@@ -347,7 +336,7 @@
       tileState.animClass = transitionClass;
       tileState.tile.classList.add(transitionClass);
 
-      const midTimeout = window.setTimeout(() => {
+      window.setTimeout(() => {
         tileState.current.style.backgroundImage = `url("${nextSrc}")`;
         tileState.src = nextSrc;
       }, duration / 2);
@@ -355,9 +344,8 @@
       window.setTimeout(() => {
         tileState.tile.classList.remove(transitionClass);
         tileState.animClass = null;
-        tileState.running = false;
+        tileState.running   = false;
         tileState.next.style.opacity = '0';
-        window.clearTimeout(midTimeout);
       }, duration + 30);
     }
 
@@ -406,7 +394,7 @@
         board.className = 'board';
         stripEl.append(board);
         for (let i = 0; i < CONFIG.tilesPerBoard; i++) {
-          const src = starter[(b * CONFIG.tilesPerBoard + i) % starter.length];
+          const src = starter[i % starter.length];
           createTile(board, src);
         }
       }
