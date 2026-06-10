@@ -11,26 +11,18 @@
       --tile-size: 120px;
       --gap: 2px;
       --board-size: 730px;
-      --bg: #111111;
-      --tile-bg: #1a1a1a;
-      --radius: 0px;
+      --tile-bg: #161616;
     }
-
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       width: 100%;
       height: 100%;
       background: transparent;
+      overflow: hidden;
       font-family: Arial, sans-serif;
     }
-
-    body {
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-    }
-
+    body { display: grid; place-items: center; }
     .board {
       width: var(--board-size);
       height: var(--board-size);
@@ -38,40 +30,35 @@
       grid-template-columns: repeat(var(--cols), var(--tile-size));
       grid-template-rows: repeat(var(--rows), var(--tile-size));
       gap: var(--gap);
-      perspective: 1200px;
-      background: transparent;
+      perspective: 1400px;
     }
-
     .tile {
       position: relative;
       width: var(--tile-size);
       height: var(--tile-size);
-      transform-style: preserve-3d;
-      perspective: 1000px;
       overflow: hidden;
       background: var(--tile-bg);
-      border-radius: var(--radius);
+      transform-style: preserve-3d;
+      isolation: isolate;
     }
-
     .tile-card {
       position: relative;
       width: 100%;
       height: 100%;
       transform-style: preserve-3d;
+      will-change: transform;
     }
-
     .tile.is-flipping .tile-card {
       animation-name: flipY;
       animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
       animation-fill-mode: both;
     }
-
     @keyframes flipY {
       0% { transform: rotateY(0deg); }
-      50% { transform: rotateY(90deg); }
+      49.999% { transform: rotateY(89.9deg); }
+      50% { transform: rotateY(-89.9deg); }
       100% { transform: rotateY(0deg); }
     }
-
     .face {
       position: absolute;
       inset: 0;
@@ -80,36 +67,29 @@
       background-repeat: no-repeat;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-      transform: translateZ(0);
+      transform: translateZ(0.1px);
     }
-
-    .face.current { z-index: 1; }
-    .face.next { z-index: 2; opacity: 0; }
-
     .loading {
       position: fixed;
       inset: 0;
       display: grid;
       place-items: center;
-      background: rgba(0,0,0,0.05);
-      color: #666;
+      color: rgba(255,255,255,0.8);
+      background: rgba(0,0,0,0.18);
       font-size: 14px;
       letter-spacing: 0.04em;
     }
-
     .hidden { display: none; }
   </style>
 </head>
 <body>
   <div id="loading" class="loading">images loading...</div>
-  <div class="board" id="board" aria-label="랜덤 이미지 플립 그리드"></div>
+  <div class="board" id="board"></div>
 
   <script>
     const CONFIG = {
       cols: 6,
       rows: 6,
-      tileSize: 120,
-      gap: 2,
       totalTiles: 36,
       minRefreshDelay: 2000,
       maxRefreshDelay: 5000,
@@ -117,37 +97,24 @@
       maxTilesPerRefresh: 3,
       minFlipDuration: 300,
       maxFlipDuration: 600,
-      imageCount: 48,
-      imagePath: './images',
-      imageExt: 'jpg',
-      filePad: 2
+      imagePool: [
+        './images/01.jpg',
+        './images/02.jpeg',
+        './images/03.png'
+      ]
     };
 
     const board = document.getElementById('board');
     const loading = document.getElementById('loading');
-    const activeImages = new Map();
     const tiles = [];
 
-    function padNumber(num, size) {
-      return String(num).padStart(size, '0');
-    }
-
-    function buildImageList() {
-      return Array.from({ length: CONFIG.imageCount }, (_, i) => {
-        const index = padNumber(i + 1, CONFIG.filePad);
-        return `${CONFIG.imagePath}/${index}.${CONFIG.imageExt}`;
-      });
-    }
-
-    const imagePool = buildImageList();
-
-    function shuffle(array) {
-      const arr = [...array];
-      for (let i = arr.length - 1; i > 0; i--) {
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+        [a[i], a[j]] = [a[j], a[i]];
       }
-      return arr;
+      return a;
     }
 
     function randomInt(min, max) {
@@ -163,115 +130,82 @@
       })));
     }
 
-    function pickUnusedImage(excludeSet) {
-      const candidates = imagePool.filter(src => !excludeSet.has(src));
+    function createTile(src) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      const card = document.createElement('div');
+      card.className = 'tile-card';
+      const face = document.createElement('div');
+      face.className = 'face';
+      face.style.backgroundImage = `url("${src}")`;
+      card.append(face);
+      tile.append(card);
+      board.append(tile);
+      tiles.push({ tile, card, face, src, flipping: false });
+    }
+
+    function activeImageSet(excludeIndexes = []) {
+      const skip = new Set(excludeIndexes);
+      return new Set(tiles.filter((_, i) => !skip.has(i)).map(t => t.src));
+    }
+
+    function pickReplacement(excludeSet) {
+      const candidates = CONFIG.imagePool.filter(src => !excludeSet.has(src));
       if (!candidates.length) return null;
       return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    function createTile(initialSrc, index) {
-      const tile = document.createElement('div');
-      tile.className = 'tile';
-      tile.dataset.index = index;
-
-      const card = document.createElement('div');
-      card.className = 'tile-card';
-
-      const current = document.createElement('div');
-      current.className = 'face current';
-      current.style.backgroundImage = `url("${initialSrc}")`;
-
-      const next = document.createElement('div');
-      next.className = 'face next';
-
-      card.append(current, next);
-      tile.append(card);
-      board.append(tile);
-
-      const state = { tile, card, current, next, src: initialSrc, flipping: false };
-      activeImages.set(index, initialSrc);
-      tiles.push(state);
-    }
-
-    function getActiveSet(skipIndexes = []) {
-      const skip = new Set(skipIndexes);
-      const set = new Set();
-      tiles.forEach((tile, idx) => {
-        if (!skip.has(idx)) set.add(tile.src);
-      });
-      return set;
-    }
-
-    function flipTile(tileState, newSrc, duration) {
-      if (tileState.flipping || tileState.src === newSrc) return;
+    function flipTo(tileState, nextSrc, duration) {
+      if (tileState.flipping || tileState.src === nextSrc) return;
       tileState.flipping = true;
-      tileState.next.style.backgroundImage = `url("${newSrc}")`;
-      tileState.next.style.opacity = '0';
       tileState.card.style.animationDuration = `${duration}ms`;
       tileState.tile.classList.add('is-flipping');
-
-      const halfway = duration / 2;
-      const midSwap = window.setTimeout(() => {
-        tileState.current.style.backgroundImage = `url("${newSrc}")`;
-        tileState.next.style.opacity = '1';
-      }, halfway * 0.98);
-
-      const done = window.setTimeout(() => {
+      window.setTimeout(() => {
+        tileState.face.style.backgroundImage = `url("${nextSrc}")`;
+        tileState.src = nextSrc;
+      }, duration / 2);
+      window.setTimeout(() => {
         tileState.tile.classList.remove('is-flipping');
-        tileState.next.style.opacity = '0';
-        tileState.src = newSrc;
         tileState.flipping = false;
-        window.clearTimeout(midSwap);
       }, duration + 20);
-
-      return () => {
-        window.clearTimeout(midSwap);
-        window.clearTimeout(done);
-      };
     }
 
-    function scheduleNextRefresh() {
+    function scheduleNext() {
       const delay = randomInt(CONFIG.minRefreshDelay, CONFIG.maxRefreshDelay);
-      window.setTimeout(runRefreshCycle, delay);
+      window.setTimeout(refreshTiles, delay);
     }
 
-    function runRefreshCycle() {
-      const count = randomInt(CONFIG.minTilesPerRefresh, CONFIG.maxTilesPerRefresh);
-      const availableTileIndexes = shuffle([...Array(tiles.length).keys()]);
-      const selectedIndexes = availableTileIndexes.slice(0, count);
-      const activeExcludingTargets = getActiveSet(selectedIndexes);
-      const pickedNewImages = new Set();
+    function refreshTiles() {
+      const changeCount = randomInt(CONFIG.minTilesPerRefresh, CONFIG.maxTilesPerRefresh);
+      const indexes = shuffle([...Array(tiles.length).keys()]).slice(0, changeCount);
+      const baseActive = activeImageSet(indexes);
+      const picked = new Set();
 
-      selectedIndexes.forEach(index => {
-        const tileState = tiles[index];
-        const excludeSet = new Set([...activeExcludingTargets, ...pickedNewImages]);
-        const newSrc = pickUnusedImage(excludeSet);
-        if (!newSrc) return;
-        pickedNewImages.add(newSrc);
-        const duration = randomInt(CONFIG.minFlipDuration, CONFIG.maxFlipDuration);
-        flipTile(tileState, newSrc, duration);
+      indexes.forEach(index => {
+        const nextSrc = pickReplacement(new Set([...baseActive, ...picked]));
+        if (!nextSrc) return;
+        picked.add(nextSrc);
+        flipTo(tiles[index], nextSrc, randomInt(CONFIG.minFlipDuration, CONFIG.maxFlipDuration));
       });
 
-      scheduleNextRefresh();
+      scheduleNext();
     }
 
     async function init() {
-      const preload = await preloadImages(imagePool);
-      const validImages = preload.filter(item => item.ok).map(item => item.url);
+      const loaded = await preloadImages(CONFIG.imagePool);
+      CONFIG.imagePool = loaded.filter(item => item.ok).map(item => item.url);
 
-      if (validImages.length < CONFIG.totalTiles) {
-        loading.textContent = `이미지가 ${CONFIG.totalTiles}장 이상 필요합니다. 현재 로드 가능: ${validImages.length}장`;
-        return;
+      if (CONFIG.imagePool.length < CONFIG.totalTiles) {
+        loading.textContent = `테스트용 이미지 ${CONFIG.imagePool.length}장 로드됨. 실전에서는 최소 36장 이상 필요합니다.`;
       }
 
-      imagePool.length = 0;
-      imagePool.push(...validImages);
-
-      const initialImages = shuffle(validImages).slice(0, CONFIG.totalTiles);
-      initialImages.forEach((src, idx) => createTile(src, idx));
+      const starter = shuffle(CONFIG.imagePool);
+      for (let i = 0; i < CONFIG.totalTiles; i++) {
+        createTile(starter[i % starter.length]);
+      }
 
       loading.classList.add('hidden');
-      scheduleNextRefresh();
+      scheduleNext();
     }
 
     init();
