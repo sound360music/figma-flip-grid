@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tile Flip Grid – Random Transitions</title>
+  <title>Tile Flip Grid – Infinite Scroll</title>
   <style>
     :root {
       --cols: 6;
@@ -11,8 +11,8 @@
       --tile-size: 120px;
       --gap: 2px;
       --board-size: 730px;
-      --tile-bg: transparent;   /* 투명 배경 */
-      --radius: 2px;           /* 모서리 곡률 */
+      --tile-bg: transparent;
+      --radius: 2px;
     }
 
     * { box-sizing: border-box; }
@@ -31,9 +31,34 @@
       place-items: center;
     }
 
+    /* 보이는 창 */
+    .viewport {
+      width: var(--board-size);
+      height: var(--board-size);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 보드 여러 개를 세로로 쌓는 컨테이너 */
+    .strip {
+      display: flex;
+      flex-direction: column;
+      animation-name: scrollUp;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      animation-duration: 36s;
+    }
+
+    @keyframes scrollUp {
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(calc(-1 * var(--board-size))); }
+    }
+
+    /* 6×6 보드 한 판 */
     .board {
       width: var(--board-size);
       height: var(--board-size);
+      flex-shrink: 0;
       display: grid;
       grid-template-columns: repeat(var(--cols), var(--tile-size));
       grid-template-rows: repeat(var(--rows), var(--tile-size));
@@ -72,13 +97,8 @@
       border-radius: var(--radius);
     }
 
-    .face.current {
-      z-index: 1;
-    }
-    .face.next {
-      z-index: 2;
-      opacity: 0;
-    }
+    .face.current { z-index: 1; }
+    .face.next    { z-index: 2; opacity: 0; }
 
     .loading {
       position: fixed;
@@ -93,7 +113,7 @@
 
     .hidden { display: none; }
 
-    /* ==== 전환 애니메이션들 ==== */
+    /* ============ 전환 애니메이션 ============ */
 
     /* Y축 플립 */
     .anim-flip-y .tile-inner {
@@ -101,12 +121,11 @@
       animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
       animation-fill-mode: both;
     }
-
     @keyframes flipY {
-      0%   { transform: rotateY(0deg); }
-      49.9%{ transform: rotateY(90deg); }
-      50%  { transform: rotateY(-90deg); }
-      100% { transform: rotateY(0deg); }
+      0%    { transform: rotateY(0deg); }
+      49.9% { transform: rotateY(90deg); }
+      50%   { transform: rotateY(-90deg); }
+      100%  { transform: rotateY(0deg); }
     }
 
     /* X축 플립 */
@@ -115,107 +134,95 @@
       animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
       animation-fill-mode: both;
     }
-
     @keyframes flipX {
-      0%   { transform: rotateX(0deg); }
-      49.9%{ transform: rotateX(90deg); }
-      50%  { transform: rotateX(-90deg); }
-      100% { transform: rotateX(0deg); }
+      0%    { transform: rotateX(0deg); }
+      49.9% { transform: rotateX(90deg); }
+      50%   { transform: rotateX(-90deg); }
+      100%  { transform: rotateX(0deg); }
     }
 
-    /* 슬라이드: 위/아래/좌/우 – next가 밀고 들어오고 current는 나감 */
-
+    /* 슬라이드 공통 – next 항상 보이게 */
     .anim-slide-up .face.next,
     .anim-slide-down .face.next,
     .anim-slide-left .face.next,
-    .anim-slide-right .face.next {
-      opacity: 1;
-    }
+    .anim-slide-right .face.next { opacity: 1; }
 
+    /* 위 */
     .anim-slide-up .face.current {
-      animation-name: slideCurrentUp;
-      animation-fill-mode: both;
+      animation-name: slideCurrentUp; animation-fill-mode: both;
     }
     .anim-slide-up .face.next {
-      animation-name: slideNextUp;
-      animation-fill-mode: both;
+      animation-name: slideNextUp; animation-fill-mode: both;
     }
     @keyframes slideCurrentUp {
-      0% { transform: translateY(0); }
+      0%   { transform: translateY(0); }
       100% { transform: translateY(-100%); }
     }
     @keyframes slideNextUp {
-      0% { transform: translateY(100%); }
+      0%   { transform: translateY(100%); }
       100% { transform: translateY(0); }
     }
 
+    /* 아래 */
     .anim-slide-down .face.current {
-      animation-name: slideCurrentDown;
-      animation-fill-mode: both;
+      animation-name: slideCurrentDown; animation-fill-mode: both;
     }
     .anim-slide-down .face.next {
-      animation-name: slideNextDown;
-      animation-fill-mode: both;
+      animation-name: slideNextDown; animation-fill-mode: both;
     }
     @keyframes slideCurrentDown {
-      0% { transform: translateY(0); }
+      0%   { transform: translateY(0); }
       100% { transform: translateY(100%); }
     }
     @keyframes slideNextDown {
-      0% { transform: translateY(-100%); }
+      0%   { transform: translateY(-100%); }
       100% { transform: translateY(0); }
     }
 
+    /* 왼쪽 */
     .anim-slide-left .face.current {
-      animation-name: slideCurrentLeft;
-      animation-fill-mode: both;
+      animation-name: slideCurrentLeft; animation-fill-mode: both;
     }
     .anim-slide-left .face.next {
-      animation-name: slideNextLeft;
-      animation-fill-mode: both;
+      animation-name: slideNextLeft; animation-fill-mode: both;
     }
     @keyframes slideCurrentLeft {
-      0% { transform: translateX(0); }
+      0%   { transform: translateX(0); }
       100% { transform: translateX(-100%); }
     }
     @keyframes slideNextLeft {
-      0% { transform: translateX(100%); }
+      0%   { transform: translateX(100%); }
       100% { transform: translateX(0); }
     }
 
+    /* 오른쪽 */
     .anim-slide-right .face.current {
-      animation-name: slideCurrentRight;
-      animation-fill-mode: both;
+      animation-name: slideCurrentRight; animation-fill-mode: both;
     }
     .anim-slide-right .face.next {
-      animation-name: slideNextRight;
-      animation-fill-mode: both;
+      animation-name: slideNextRight; animation-fill-mode: both;
     }
     @keyframes slideCurrentRight {
-      0% { transform: translateX(0); }
+      0%   { transform: translateX(0); }
       100% { transform: translateX(100%); }
     }
     @keyframes slideNextRight {
-      0% { transform: translateX(-100%); }
+      0%   { transform: translateX(-100%); }
       100% { transform: translateX(0); }
     }
 
-    /* 디졸브 + 블러 */
+    /* 블러 디졸브 */
     .anim-dissolve .face.current {
-      animation-name: dissolveOut;
-      animation-fill-mode: both;
+      animation-name: dissolveOut; animation-fill-mode: both;
     }
     .anim-dissolve .face.next {
       opacity: 1;
-      animation-name: dissolveIn;
-      animation-fill-mode: both;
+      animation-name: dissolveIn; animation-fill-mode: both;
     }
-
     @keyframes dissolveOut {
       0%   { opacity: 1; filter: blur(0px); }
       100% { opacity: 0; filter: blur(6px); }
     }
-
     @keyframes dissolveIn {
       0%   { opacity: 0; filter: blur(6px); }
       100% { opacity: 1; filter: blur(0px); }
@@ -225,18 +232,21 @@
 </head>
 <body>
   <div id="loading" class="loading">images loading...</div>
-  <div class="board" id="board"></div>
+  <div class="viewport">
+    <div class="strip" id="strip"></div>
+  </div>
 
   <script>
     const CONFIG = {
       cols: 6,
       rows: 6,
-      totalTiles: 36,
+      tilesPerBoard: 36,
+      boardCount: 3,           // 세로로 이어 붙일 보드 개수 (3개면 충분히 끊김 없음)
       minRefreshDelay: 2000,
       maxRefreshDelay: 5000,
       minTilesPerRefresh: 1,
       maxTilesPerRefresh: 3,
-      minAnimDuration: 300,   // ms
+      minAnimDuration: 300,
       maxAnimDuration: 600,
       minIndex: 1,
       maxIndex: 99,
@@ -244,9 +254,19 @@
       basePath: './images'
     };
 
-    const boardEl = document.getElementById('board');
+    const stripEl   = document.getElementById('strip');
     const loadingEl = document.getElementById('loading');
-    const tiles = [];
+    const tiles     = [];
+
+    const TRANSITIONS = [
+      'anim-flip-x',
+      'anim-flip-y',
+      'anim-slide-up',
+      'anim-slide-down',
+      'anim-slide-left',
+      'anim-slide-right',
+      'anim-dissolve'
+    ];
 
     function pad2(n) {
       return String(n).padStart(2, '0');
@@ -265,7 +285,6 @@
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
 
-    // 01~99, 각 확장자 조합으로 URL 후보 생성
     function buildCandidateUrls() {
       const urls = [];
       for (let i = CONFIG.minIndex; i <= CONFIG.maxIndex; i++) {
@@ -282,7 +301,7 @@
         urls.map(url =>
           new Promise(resolve => {
             const img = new Image();
-            img.onload = () => resolve({ url, ok: true });
+            img.onload  = () => resolve({ url, ok: true  });
             img.onerror = () => resolve({ url, ok: false });
             img.src = url;
           })
@@ -290,7 +309,7 @@
       );
     }
 
-    function createTile(initialSrc) {
+    function createTile(boardEl, initialSrc) {
       const tile = document.createElement('div');
       tile.className = 'tile';
 
@@ -309,10 +328,7 @@
       boardEl.append(tile);
 
       tiles.push({
-        tile,
-        inner,
-        current,
-        next,
+        tile, inner, current, next,
         src: initialSrc,
         animClass: null,
         running: false
@@ -327,24 +343,11 @@
     function pickReplacement(pool, excludeSet) {
       const candidates = pool.filter(src => !excludeSet.has(src));
       if (!candidates.length) return null;
-      const idx = Math.floor(Math.random() * candidates.length);
-      return candidates[idx];
+      return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    // 사용할 애니메이션 타입들
-    const TRANSITIONS = [
-      'anim-flip-x',
-      'anim-flip-y',
-      'anim-slide-up',
-      'anim-slide-down',
-      'anim-slide-left',
-      'anim-slide-right',
-      'anim-dissolve'
-    ];
-
     function pickRandomTransition() {
-      const idx = Math.floor(Math.random() * TRANSITIONS.length);
-      return TRANSITIONS[idx];
+      return TRANSITIONS[Math.floor(Math.random() * TRANSITIONS.length)];
     }
 
     function applyTransition(tileState, nextSrc, duration) {
@@ -354,41 +357,33 @@
       tileState.next.style.backgroundImage = `url("${nextSrc}")`;
       tileState.next.style.opacity = '1';
 
-      // 이전 애니메이션 클래스 제거
       if (tileState.animClass) {
         tileState.tile.classList.remove(tileState.animClass);
       }
 
       const transitionClass = pickRandomTransition();
-      tileState.animClass = transitionClass;
+      tileState.animClass   = transitionClass;
 
-      const ms = duration;
-      tileState.inner.style.animationDuration = `${ms}ms`;
-      tileState.current.style.animationDuration = `${ms}ms`;
-      tileState.next.style.animationDuration = `${ms}ms`;
+      tileState.inner.style.animationDuration   = `${duration}ms`;
+      tileState.current.style.animationDuration = `${duration}ms`;
+      tileState.next.style.animationDuration    = `${duration}ms`;
 
       tileState.tile.classList.add(transitionClass);
 
-      // 애니메이션 중간 지점에서 src 교체 (플립/슬라이드 기준)
       const midTimeout = window.setTimeout(() => {
         tileState.current.style.backgroundImage = `url("${nextSrc}")`;
         tileState.src = nextSrc;
-      }, ms / 2);
+      }, duration / 2);
 
-      const endTimeout = window.setTimeout(() => {
+      window.setTimeout(() => {
         tileState.tile.classList.remove(transitionClass);
-        tileState.running = false;
+        tileState.running  = false;
         tileState.next.style.opacity = '0';
+        tileState.inner.style.animationDuration   = '';
         tileState.current.style.animationDuration = '';
-        tileState.next.style.animationDuration = '';
-        tileState.inner.style.animationDuration = '';
+        tileState.next.style.animationDuration    = '';
         window.clearTimeout(midTimeout);
-      }, ms + 30);
-
-      return () => {
-        window.clearTimeout(midTimeout);
-        window.clearTimeout(endTimeout);
-      };
+      }, duration + 30);
     }
 
     function scheduleNext(pool) {
@@ -397,23 +392,19 @@
     }
 
     function refreshTiles(pool) {
-      if (!pool.length) {
-        scheduleNext(pool);
-        return;
-      }
+      if (!pool.length) { scheduleNext(pool); return; }
 
       const changeCount = randomInt(CONFIG.minTilesPerRefresh, CONFIG.maxTilesPerRefresh);
-      const indexes = shuffle([...Array(tiles.length).keys()]).slice(0, changeCount);
-      const baseActive = activeImageSet(indexes);
-      const picked = new Set();
+      const indexes     = shuffle([...Array(tiles.length).keys()]).slice(0, changeCount);
+      const baseActive  = activeImageSet(indexes);
+      const picked      = new Set();
 
       indexes.forEach(index => {
-        const tileState = tiles[index];
         const nextSrc = pickReplacement(pool, new Set([...baseActive, ...picked]));
         if (!nextSrc) return;
         picked.add(nextSrc);
         const duration = randomInt(CONFIG.minAnimDuration, CONFIG.maxAnimDuration);
-        applyTransition(tileState, nextSrc, duration);
+        applyTransition(tiles[index], nextSrc, duration);
       });
 
       scheduleNext(pool);
@@ -421,8 +412,8 @@
 
     async function init() {
       const candidates = buildCandidateUrls();
-      const loaded = await preloadImages(candidates);
-      const pool = loaded.filter(item => item.ok).map(item => item.url);
+      const loaded     = await preloadImages(candidates);
+      const pool       = loaded.filter(item => item.ok).map(item => item.url);
 
       if (!pool.length) {
         loadingEl.textContent =
@@ -430,14 +421,24 @@
         return;
       }
 
-      if (pool.length < CONFIG.totalTiles) {
+      const totalTiles = CONFIG.tilesPerBoard * CONFIG.boardCount;
+
+      if (pool.length < CONFIG.tilesPerBoard) {
         loadingEl.textContent =
-          `사용 가능한 이미지 ${pool.length}장. 타일 ${CONFIG.totalTiles}개 중 일부는 반복 사용됩니다.`;
+          `사용 가능한 이미지 ${pool.length}장. 일부 타일은 반복 사용됩니다.`;
       }
 
       const starter = shuffle(pool);
-      for (let i = 0; i < CONFIG.totalTiles; i++) {
-        createTile(starter[i % starter.length]);
+
+      for (let b = 0; b < CONFIG.boardCount; b++) {
+        const board = document.createElement('div');
+        board.className = 'board';
+        stripEl.append(board);
+
+        for (let i = 0; i < CONFIG.tilesPerBoard; i++) {
+          const src = starter[(b * CONFIG.tilesPerBoard + i) % starter.length];
+          createTile(board, src);
+        }
       }
 
       loadingEl.classList.add('hidden');
