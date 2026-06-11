@@ -95,7 +95,6 @@
     .face.current { z-index: 1; }
     .face.next    { z-index: 2; opacity: 0; }
 
-    /* ── 2×2 큰 타일 오버레이 ── */
     .big-tile {
       position: absolute;
       z-index: 100;
@@ -121,8 +120,6 @@
     }
 
     .hidden { display: none; }
-
-    /* ===== 전환 애니메이션 ===== */
 
     .anim-flip-y .tile-inner {
       animation-name: flipY;
@@ -245,12 +242,11 @@
       maxIndex: 99,
       exts: ['jpg', 'jpeg', 'png', 'gif'],
       basePath: './images',
-      // 2×2 큰 타일 설정
       bigTile: {
-        minInterval: 80000,   // 등장 최소 간격 80s
-        maxInterval: 120000,  // 등장 최대 간격 120s
-        minDisplay:  10000,   // 유지 최소 10s
-        maxDisplay:  20000,   // 유지 최대 20s
+        minInterval: 40000,   // 40s ~ 60s 간격으로 더 자주 등장
+        maxInterval: 60000,
+        minDisplay:  20000,   // 20s ~ 40s 동안 더 오래 유지
+        maxDisplay:  40000,
       }
     };
 
@@ -266,11 +262,9 @@
 
     const stripEl   = document.getElementById('strip');
     const loadingEl = document.getElementById('loading');
-    const tiles     = [];   // 전체 타일 state (boardCount * tilesPerBoard 개)
-    const boards    = [];   // board DOM 참조 (big-tile overlay 붙일 때 사용)
-
-    // 현재 활성화된 big-tile 정보 (보드별로 따로 관리)
-    const activeBig = [null, null]; // activeBig[boardIdx] = { el, col, row }
+    const tiles     = [];
+    const boards    = [];
+    const activeBig = [null, null];
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
@@ -312,17 +306,17 @@
     }
 
     function createTile(boardEl, initialSrc, boardIdx) {
-      const tile    = document.createElement('div');
+      const tile  = document.createElement('div');
       tile.className = 'tile';
 
-      const inner   = document.createElement('div');
+      const inner = document.createElement('div');
       inner.className = 'tile-inner';
 
       const current = document.createElement('div');
       current.className = 'face current';
       current.style.backgroundImage = `url("${initialSrc}")`;
 
-      const next    = document.createElement('div');
+      const next = document.createElement('div');
       next.className = 'face next';
 
       inner.append(current, next);
@@ -383,7 +377,6 @@
       }, duration + 30);
     }
 
-    // ── 1×1 타일 교체 스케줄러 ──
     function scheduleNext(pool) {
       const delay = randomInt(CONFIG.minRefreshDelay, CONFIG.maxRefreshDelay);
       window.setTimeout(() => refreshTiles(pool), delay);
@@ -408,10 +401,6 @@
       scheduleNext(pool);
     }
 
-    // ── 2×2 큰 타일 로직 ──
-
-    // 보드 내에서 2×2 블록이 들어갈 수 있는 모든 (col, row) 좌상단 좌표 목록
-    // cols=6, rows=6 → 0~4, 0~4
     function getAllBigPositions() {
       const positions = [];
       for (let r = 0; r <= CONFIG.rows - 2; r++) {
@@ -419,26 +408,22 @@
           positions.push({ col: c, row: r });
         }
       }
-      return positions; // 25개
+      return positions;
     }
 
     function showBigTile(boardIdx, pool) {
-      // 이미 이 보드에 big-tile 활성화 중이면 스킵
       if (activeBig[boardIdx]) return;
 
       const boardEl = boards[boardIdx];
       const positions = shuffle(getAllBigPositions());
-      const pos = positions[0]; // 랜덤 위치
+      const pos = positions[0];
 
-      // 이미지 선택: 현재 화면에 나온 이미지 제외
       const currentSrcs = new Set(tiles.filter(t => t.boardIdx === boardIdx).map(t => t.src));
       const src = pickReplacement(pool, currentSrcs) || pool[randomInt(0, pool.length - 1)];
 
-      // big-tile 엘리먼트 생성
       const el = document.createElement('div');
       el.className = 'big-tile';
 
-      // 위치 및 크기: 2×2 타일 + 내부 gap 1개
       const size = TILE_SIZE * 2 + GAP;
       const left = pos.col * (TILE_SIZE + GAP);
       const top  = pos.row * (TILE_SIZE + GAP);
@@ -452,12 +437,10 @@
       boardEl.appendChild(el);
       activeBig[boardIdx] = { el, col: pos.col, row: pos.row };
 
-      // 다음 프레임에 fade-in
       requestAnimationFrame(() => {
         requestAnimationFrame(() => { el.classList.add('visible'); });
       });
 
-      // 10~20초 랜덤 후 fade-out + 제거
       const displayDuration = randomInt(CONFIG.bigTile.minDisplay, CONFIG.bigTile.maxDisplay);
       window.setTimeout(() => hideBigTile(boardIdx, pool), displayDuration);
     }
@@ -468,13 +451,11 @@
 
       big.el.classList.remove('visible');
 
-      // fade-out 트랜지션 끝난 후 DOM 제거
       window.setTimeout(() => {
         if (big.el.parentNode) big.el.parentNode.removeChild(big.el);
         activeBig[boardIdx] = null;
-      }, 700); // transition 0.6s + 여유 100ms
+      }, 700);
 
-      // 다음 big-tile 스케줄 예약
       scheduleBigTile(boardIdx, pool);
     }
 
@@ -483,7 +464,6 @@
       window.setTimeout(() => showBigTile(boardIdx, pool), delay);
     }
 
-    // ── init ──
     async function init() {
       const candidates = buildCandidateUrls();
       const loaded     = await preloadImages(candidates);
@@ -514,10 +494,8 @@
 
       loadingEl.classList.add('hidden');
 
-      // 1×1 타일 교체 시작
       scheduleNext(pool);
 
-      // 각 보드마다 big-tile 스케줄 시작 (보드별 타이밍 약간 엇갈리게)
       for (let b = 0; b < CONFIG.boardCount; b++) {
         const initialDelay = randomInt(CONFIG.bigTile.minInterval, CONFIG.bigTile.maxInterval);
         window.setTimeout(() => showBigTile(b, pool), initialDelay);
