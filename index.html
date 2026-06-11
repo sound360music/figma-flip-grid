@@ -8,9 +8,9 @@
     :root {
       --cols: 6;
       --rows: 6;
-      --tile-size: 120px;
+      --tile-size: 148px;   /* 6*148 + 5*2 = 898px ≈ 900x900 */
       --gap: 2px;
-      --board-size: 730px;
+      --board-size: 898px;
       --tile-bg: transparent;
       --radius: 2px;
     }
@@ -35,10 +35,13 @@
       position: relative;
     }
 
+    /* 보드 2판: board1 → board2 → 리셋 시 board1로 복귀
+       board1과 board2는 동일한 초기 이미지 배치 → 리셋 순간 자연스러움 */
     .strip {
       display: flex;
       flex-direction: column;
-      animation: scrollUp 72s linear infinite;
+      gap: 2px; /* 보드 사이도 2px 간격 */
+      animation: scrollUp 79.2s linear infinite; /* 72s보다 10% 느리게 */
     }
 
     @keyframes scrollUp {
@@ -105,6 +108,8 @@
     }
 
     .hidden { display: none; }
+
+    /* ===== 전환 애니메이션 ===== */
 
     .anim-flip-y .tile-inner {
       animation-name: flipY;
@@ -216,9 +221,9 @@
       cols: 6,
       rows: 6,
       tilesPerBoard: 36,
-      boardCount: 2,
-      minRefreshDelay: 2000,
-      maxRefreshDelay: 5000,
+      boardCount: 2,           // board1=board2 동일 배치 → 루프 자연스러움
+      minRefreshDelay: 1800,   // 2.0s → 1.8s (조금 더 자주 교체)
+      maxRefreshDelay: 4500,   // 5.0s → 4.5s
       minTilesPerRefresh: 1,
       maxTilesPerRefresh: 3,
       minAnimDuration: 300,
@@ -329,18 +334,20 @@
 
       if (tileState.animClass) {
         tileState.tile.classList.remove(tileState.animClass);
-        void tileState.tile.offsetWidth;
+        void tileState.tile.offsetWidth; // reflow → 애니메이션 재시작 보장
       }
 
       const transitionClass = pickRandomTransition();
       tileState.animClass = transitionClass;
       tileState.tile.classList.add(transitionClass);
 
+      // 중간 시점에 current 이미지 교체
       window.setTimeout(() => {
         tileState.current.style.backgroundImage = `url("${nextSrc}")`;
         tileState.src = nextSrc;
       }, duration / 2);
 
+      // 종료 후 정리
       window.setTimeout(() => {
         tileState.tile.classList.remove(transitionClass);
         tileState.animClass = null;
@@ -394,6 +401,7 @@
         board.className = 'board';
         stripEl.append(board);
         for (let i = 0; i < CONFIG.tilesPerBoard; i++) {
+          // 모든 보드가 동일한 초기 배치 → 루프 리셋 시 자연스러움
           const src = starter[i % starter.length];
           createTile(board, src);
         }
